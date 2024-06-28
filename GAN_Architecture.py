@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
 from torch.utils.data import DataLoader, TensorDataset
+from scipy.stats import ks_2samp
 
 class Generator(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim, num_layers):
@@ -106,3 +107,9 @@ def Sample_Synthetic_Data(generator, num_samples, latent_dim):
     return synthetic_data.detach().numpy()
 
 
+def CalculateKS(original_set, synthetic_set):
+    p_values = {}
+    for column in original_set.columns:
+        statistic, p_value = ks_2samp(original_set[column], synthetic_set[column])
+        p_values[column] = p_value
+    return p_values
