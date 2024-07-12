@@ -1,5 +1,3 @@
-# GAN_Architecture.py
-
 import math
 import torch
 import torch.nn as nn
@@ -51,15 +49,12 @@ def Create_GAN_Architecture(original_set):
     
     return generator, discriminator, latent_dim
 
-def train_GAN(csv_path, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
-    # Read the CSV file into a pandas DataFrame
-    original_set = pd.read_csv(csv_path)
-
+def train_GAN(dataset, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
     # Create the GAN architecture using the original_set
-    generator, discriminator, latent_dim = Create_GAN_Architecture(original_set)
+    generator, discriminator, latent_dim = Create_GAN_Architecture(dataset)
     
     # Convert the original_set to a Tensor and create a DataLoader
-    original_tensor = torch.tensor(original_set.values, dtype=torch.float32)
+    original_tensor = torch.tensor(dataset.values, dtype=torch.float32)
     dataloader = DataLoader(TensorDataset(original_tensor), batch_size=batch_size, shuffle=True)
     
     # Loss function
@@ -73,14 +68,16 @@ def train_GAN(csv_path, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
     for epoch in range(num_epochs):
         for real_data in dataloader:
             real_data = real_data[0]
+            current_batch_size = real_data.size(0)
+            
             # Train Discriminator
             optimizer_D.zero_grad()
             
-            z = torch.randn(batch_size, latent_dim)
+            z = torch.randn(current_batch_size, latent_dim)
             fake_data = generator(z)
             
-            real_labels = torch.ones(batch_size, 1)
-            fake_labels = torch.zeros(batch_size, 1)
+            real_labels = torch.ones(current_batch_size, 1)
+            fake_labels = torch.zeros(current_batch_size, 1)
             
             real_loss = criterion(discriminator(real_data), real_labels)
             fake_loss = criterion(discriminator(fake_data.detach()), fake_labels)
@@ -91,7 +88,7 @@ def train_GAN(csv_path, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
             # Train Generator
             optimizer_G.zero_grad()
             
-            gen_labels = torch.ones(batch_size, 1)  # Fool the discriminator
+            gen_labels = torch.ones(current_batch_size, 1)  # Fool the discriminator
             gen_loss = criterion(discriminator(fake_data), gen_labels)
             gen_loss.backward()
             optimizer_G.step()
@@ -106,10 +103,29 @@ def Sample_Synthetic_Data(generator, num_samples, latent_dim):
     synthetic_data = generator(z)
     return synthetic_data.detach().numpy()
 
-
 def CalculateKS(original_set, synthetic_set):
     p_values = {}
     for column in original_set.columns:
         statistic, p_value = ks_2samp(original_set[column], synthetic_set[column])
         p_values[column] = p_value
     return p_values
+
+
+def selective_sample(generator, num_samples, latent_dim, original_set):
+    # Generate synthetic data
+    synthetic_data = Sample_Synthetic_Data(generator, num_samples, latent_dim)
+    synthetic_df = pd.DataFrame(synthetic_data, columns=original_set.columns)
+    
+    filtered_synthetic_df = pd.DataFrame()
+    
+    for column in original_set.columns:
+        unique_values = set(original_set[column].unique())
+        if unique_values.issubset({0, 1}):  # Binary columns
+            synthetic_df[column] = (synthetic_df[column] > 0.5).astype(int)
+            filtered_synthetic_df[column] = synthetic_df[column]
+        else:  # Continuous columns
+            min_val = original_set[column].min()
+            max_val = original_set[column].max()
+            filtered_synthetic_df[column] = synthetic_df[column].clip(lower=min_val, upper=max_val)
+    
+    return filtered_synthetic_df
