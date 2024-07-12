@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 from preprocess import clean_set, analyze_dataset
 from GAN_Architecture import train_GAN, CalculateKS, selective_sample
 
@@ -34,5 +35,21 @@ class Model:
         # Convert the p-values dictionary to a DataFrame for columnar representation
         self.p_values_df = pd.DataFrame(list(p_values.items()), columns=['Column', 'KS p-value'])
         # Round the p-values to 4 decimal places and convert to string to avoid scientific notation
-        self.p_values_df['KS p-value'] = self.p_values_df['KS p-value'].apply(lambda x: format(x, '.4f'))
+        self.p_values_df['KS p-value'] = self.p_values_df['KS p-value'].apply(lambda x: format(x, '.6f'))
 
+
+    ## FUNCTION that creates a CSV of the synthetic data
+    def get_synthetic_csv(self):
+        # Extract the original filename
+        original_filename = os.path.basename(self.csv_path)
+        # Create the new filename
+        new_filename = f"synthetic_{original_filename}"
+        # Save the synthetic data to a CSV file
+        self.synthetic_csv = self.selected_synthetic_data.to_csv(new_filename, index=False)
+        # Return the new filename
+        return self.synthetic_csv
+    
+    
+    def get_KS_pvalues(self):
+        return self.p_values_df
+    
