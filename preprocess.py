@@ -20,3 +20,86 @@ def drop_invalid_zeros(df):
     df_cleaned = df[~((df[non_binary_columns] == 0).any(axis=1))]
 
     return df_cleaned
+
+def drop_na(df):
+    """
+    Drops rows that have NaN values.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+    pd.DataFrame: The DataFrame with NaN values removed.
+    """
+    df_cleaned = df.dropna()
+    return df_cleaned
+
+def clean_set(df):
+    """
+    Cleans the dataset by removing rows with invalid zeros and NaN values.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+    pd.DataFrame: The cleaned DataFrame.
+    """
+    df_cleaned = drop_invalid_zeros(df)
+    df_cleaned = drop_na(df_cleaned)
+    return df_cleaned
+
+
+
+def analyze_dataset(df):
+    """
+    Analyzes the dataset to suggest hyperparameters for GAN training.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+    dict: Suggested hyperparameters.
+    """
+    num_samples = len(df)
+    num_features = df.shape[1]
+    
+    # Suggest epochs based on dataset size and dimensionality
+    if num_samples < 1000:
+        epochs = 1000
+    elif num_samples < 10000:
+        epochs = 5000
+    else:
+        epochs = 10000
+
+    # Adjust epochs for high dimensionality
+    if num_features > 50:
+        epochs = int(epochs * 1.5)
+
+    # Suggest learning rate based on dataset size and dimensionality
+    if num_samples < 1000:
+        lr = 0.0004
+    elif num_samples < 10000:
+        lr = 0.0002
+    else:
+        lr = 0.0001
+
+    # Adjust learning rate for high dimensionality
+    if num_features > 50:
+        lr = lr / 2
+
+    # Suggest batch size based on dataset size and dimensionality
+    if num_samples < 1000:
+        batch_size = 64
+    elif num_samples < 10000:
+        batch_size = 128
+    else:
+        batch_size = 256
+
+    # Adjust batch size for high dimensionality
+    if num_features > 50:
+        batch_size = min(64, batch_size)
+
+    # Beta1 value for Adam optimizer
+    beta1 = 0.5
+
+    return epochs, lr, batch_size, beta1

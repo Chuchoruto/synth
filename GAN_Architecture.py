@@ -98,6 +98,17 @@ def train_GAN(dataset, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
 
     return generator
 
+
+
+#
+#
+#
+#   Everything below here is sampling related
+#
+#
+#
+
+
 def Sample_Synthetic_Data(generator, num_samples, latent_dim):
     z = torch.randn(num_samples, latent_dim)
     synthetic_data = generator(z)
