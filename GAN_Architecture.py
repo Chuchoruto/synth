@@ -7,24 +7,24 @@ from torch.utils.data import DataLoader, TensorDataset
 from scipy.stats import ks_2samp
 
 class Generator(nn.Module):
-    def __init__(self, input_dim, output_dim, hidden_dim, num_layers):
+    def __init__(self, input_dim, output_dim, hidden_dims):
         super(Generator, self).__init__()
-        layers = [nn.Linear(input_dim, hidden_dim), nn.ReLU(True)]
-        for _ in range(num_layers - 2):
-            layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU(True)]
-        layers.append(nn.Linear(hidden_dim, output_dim))
+        layers = [nn.Linear(input_dim, hidden_dims[0]), nn.ReLU(True)]
+        for i in range(1, len(hidden_dims)):
+            layers += [nn.Linear(hidden_dims[i-1], hidden_dims[i]), nn.ReLU(True)]
+        layers.append(nn.Linear(hidden_dims[-1], output_dim))
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.model(x)
 
 class Discriminator(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers):
+    def __init__(self, input_dim, hidden_dims):
         super(Discriminator, self).__init__()
-        layers = [nn.Linear(input_dim, hidden_dim), nn.ReLU(True)]
-        for _ in range(num_layers - 2):
-            layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU(True)]
-        layers.append(nn.Linear(hidden_dim, 1))
+        layers = [nn.Linear(input_dim, hidden_dims[0]), nn.ReLU(True)]
+        for i in range(1, len(hidden_dims)):
+            layers += [nn.Linear(hidden_dims[i-1], hidden_dims[i]), nn.ReLU(True)]
+        layers.append(nn.Linear(hidden_dims[-1], 1))
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -32,7 +32,7 @@ class Discriminator(nn.Module):
 
 def Create_GAN_Architecture(original_set):
     D = original_set.shape[1]
-    hidden_dim = 7 * D
+    hidden_dim = 10 * D
     num_layers = math.ceil(math.log(D))
     
     if D < 10:
@@ -44,8 +44,11 @@ def Create_GAN_Architecture(original_set):
     else:
         latent_dim = 200
     
-    generator = Generator(latent_dim, D, hidden_dim, num_layers)
-    discriminator = Discriminator(D, hidden_dim, num_layers)
+    hidden_dims = [math.ceil(hidden_dim / (2**i)) for i in range(num_layers)]
+
+    
+    generator = Generator(latent_dim, D, hidden_dims)
+    discriminator = Discriminator(D, hidden_dims)
     
     return generator, discriminator, latent_dim
 

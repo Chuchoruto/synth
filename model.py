@@ -49,7 +49,9 @@ class Model:
         # Return the new filename
         return self.synthetic_csv
     
-    
+
     def get_KS_pvalues(self):
         return self.p_values_df
     
+    def check_pvalues_threshold(self):
+        return all(float(p) < 0.05 for p in self.p_values_df['KS p-value'])
