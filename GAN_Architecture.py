@@ -2,9 +2,9 @@ import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import pandas as pd
 from torch.utils.data import DataLoader, TensorDataset
-from scipy.stats import ks_2samp
+from sklearn.preprocessing import MinMaxScaler
+
 
 class Generator(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dims):
@@ -32,7 +32,7 @@ class Discriminator(nn.Module):
 
 def Create_GAN_Architecture(original_set):
     D = original_set.shape[1]
-    hidden_dim = 10 * D
+    hidden_dim = 7 * D
     num_layers = math.ceil(math.log(D))
     
     if D < 10:
@@ -45,12 +45,33 @@ def Create_GAN_Architecture(original_set):
         latent_dim = 200
     
     hidden_dims = [math.ceil(hidden_dim / (2**i)) for i in range(num_layers)]
-
+    #hidden_dims = [hidden_dim for i in range(num_layers)]
     
     generator = Generator(latent_dim, D, hidden_dims)
     discriminator = Discriminator(D, hidden_dims)
     
     return generator, discriminator, latent_dim
+
+def gradient_penalty(discriminator, real_data, fake_data, lambda_gp=5):
+    alpha = torch.rand(real_data.size(0), 1)
+    alpha = alpha.expand(real_data.size())
+    alpha = alpha.to(real_data.device)
+
+    interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+    interpolates = interpolates.to(real_data.device)
+    interpolates = torch.autograd.Variable(interpolates, requires_grad=True)
+
+    disc_interpolates = discriminator(interpolates)
+
+    gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                    grad_outputs=torch.ones(disc_interpolates.size()).to(real_data.device),
+                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
+
+    gradients = gradients.view(gradients.size(0), -1)
+
+    
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * lambda_gp
+    return gradient_penalty
 
 def train_GAN(dataset, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
     # Create the GAN architecture using the original_set
@@ -60,9 +81,6 @@ def train_GAN(dataset, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
     original_tensor = torch.tensor(dataset.values, dtype=torch.float32)
     dataloader = DataLoader(TensorDataset(original_tensor), batch_size=batch_size, shuffle=True)
     
-    # Loss function
-    criterion = nn.BCEWithLogitsLoss()
-
     # Optimizers
     optimizer_G = optim.Adam(generator.parameters(), lr=lr, betas=(beta1, 0.999))
     optimizer_D = optim.Adam(discriminator.parameters(), lr=lr, betas=(beta1, 0.999))
@@ -70,76 +88,37 @@ def train_GAN(dataset, num_epochs=10000, batch_size=128, lr=0.0001, beta1=0.5):
     # Training loop
     for epoch in range(num_epochs):
         for real_data in dataloader:
-            real_data = real_data[0]
+            real_data = real_data[0].to(generator.model[0].weight.device)
             current_batch_size = real_data.size(0)
             
             # Train Discriminator
-            optimizer_D.zero_grad()
-            
-            z = torch.randn(current_batch_size, latent_dim)
-            fake_data = generator(z)
-            
-            real_labels = torch.ones(current_batch_size, 1)
-            fake_labels = torch.zeros(current_batch_size, 1)
-            
-            real_loss = criterion(discriminator(real_data), real_labels)
-            fake_loss = criterion(discriminator(fake_data.detach()), fake_labels)
-            d_loss = real_loss + fake_loss
-            d_loss.backward()
-            optimizer_D.step()
+            for _ in range(1):  # Number of critic updates
+                optimizer_D.zero_grad()
+                
+                z = torch.randn(current_batch_size, latent_dim).to(generator.model[0].weight.device)
+                fake_data = generator(z)
+                
+                real_loss = -torch.mean(discriminator(real_data))
+                fake_loss = torch.mean(discriminator(fake_data.detach()))
+                gp = gradient_penalty(discriminator, real_data, fake_data, lambda_gp=15)
+                d_loss = real_loss + fake_loss + gp
+                d_loss.backward()
+                
+                #torch.nn.utils.clip_grad_norm_(discriminator.parameters(), 1.0)  # Gradient clipping
+                
+                optimizer_D.step()
             
             # Train Generator
-            optimizer_G.zero_grad()
-            
-            gen_labels = torch.ones(current_batch_size, 1)  # Fool the discriminator
-            gen_loss = criterion(discriminator(fake_data), gen_labels)
-            gen_loss.backward()
-            optimizer_G.step()
+            if epoch % 5 == 0:
+                optimizer_G.zero_grad()
+                
+                gen_labels = torch.ones(current_batch_size, 1).to(generator.model[0].weight.device)  # Fool the discriminator
+                gen_loss = -torch.mean(discriminator(fake_data))
+                gen_loss.backward()
+                optimizer_G.step()
             
         if epoch % 100 == 0:
             print(f"Epoch [{epoch}/{num_epochs}] | D Loss: {d_loss.item():.4f} | G Loss: {gen_loss.item():.4f}")
 
     return generator
 
-
-
-#
-#
-#
-#   Everything below here is sampling related
-#
-#
-#
-
-
-def Sample_Synthetic_Data(generator, num_samples, latent_dim):
-    z = torch.randn(num_samples, latent_dim)
-    synthetic_data = generator(z)
-    return synthetic_data.detach().numpy()
-
-def CalculateKS(original_set, synthetic_set):
-    p_values = {}
-    for column in original_set.columns:
-        statistic, p_value = ks_2samp(original_set[column], synthetic_set[column])
-        p_values[column] = p_value
-    return p_values
-
-
-def selective_sample(generator, num_samples, latent_dim, original_set):
-    # Generate synthetic data
-    synthetic_data = Sample_Synthetic_Data(generator, num_samples, latent_dim)
-    synthetic_df = pd.DataFrame(synthetic_data, columns=original_set.columns)
-    
-    filtered_synthetic_df = pd.DataFrame()
-    
-    for column in original_set.columns:
-        unique_values = set(original_set[column].unique())
-        if unique_values.issubset({0, 1}):  # Binary columns
-            synthetic_df[column] = (synthetic_df[column] > 0.5).astype(int)
-            filtered_synthetic_df[column] = synthetic_df[column]
-        else:  # Continuous columns
-            min_val = original_set[column].min()
-            max_val = original_set[column].max()
-            filtered_synthetic_df[column] = synthetic_df[column].clip(lower=min_val, upper=max_val)
-    
-    return filtered_synthetic_df
