@@ -1,19 +1,19 @@
 import pandas as pd
 import os
 from preprocess import clean_set, analyze_dataset
-from GAN_Architecture import train_GAN
+from GAN_Architecture import train_GAN, train_GAN_with_feature_matching
 from sampler import calculate_ks, selective_sample, sample_gan
 from sklearn.preprocessing import MinMaxScaler
 
 class Model:
     def __init__(self, csv_path, num_samples):
         self.csv_path = csv_path
-        self.run_training(csv_path)
+        self.run_training(csv_path, 2)
         self.sample_select_data(num_samples)
         self.nondiscriminatory_sample(num_samples)
         self.calc_ks()
 
-    def run_training(self, csv_path):
+    def run_training(self, csv_path, type):
         original = pd.read_csv(csv_path)
         self.original_set = clean_set(original)
 
@@ -23,8 +23,10 @@ class Model:
         self.scaled_df = pd.DataFrame(scaled_data, columns=self.original_set.columns)
 
         epochs, lr, batch_size, beta1 = analyze_dataset(self.original_set)
-
-        self.generator = train_GAN(self.scaled_df, epochs, batch_size, lr, beta1)
+        if type == 1:
+            self.generator = train_GAN(self.scaled_df, epochs, batch_size, lr, beta1)
+        else:
+            self.generator = train_GAN_with_feature_matching(self.scaled_df, epochs, batch_size, lr, beta1)
 
     def nondiscriminatory_sample(self, num_samples):
         latent_dim = self.generator.model[0].in_features  # Extract latent dimension from generator

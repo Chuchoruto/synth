@@ -65,7 +65,7 @@ def analyze_dataset(df):
     
     # Suggest epochs based on dataset size and dimensionality
     if num_samples < 1000:
-        epochs = 5000
+        epochs = 1000
     elif num_samples < 10000:
         epochs = 5000
     else:
@@ -77,11 +77,11 @@ def analyze_dataset(df):
 
     # Suggest learning rate based on dataset size and dimensionality
     if num_samples < 1000:
-        lr = 0.000025
+        lr = 0.0001
     elif num_samples < 10000:
-        lr = 0.000001
+        lr = 0.00001
     else:
-        lr = 0.0000001
+        lr = 0.000001
 
     # Adjust learning rate for high dimensionality
     if num_features > 50:
@@ -89,11 +89,11 @@ def analyze_dataset(df):
 
     # Suggest batch size based on dataset size and dimensionality
     if num_samples < 1000:
-        batch_size = 64
-    elif num_samples < 10000:
         batch_size = 128
+    elif num_samples < 10000:
+        batch_size = 512
     else:
-        batch_size = 256
+        batch_size = 1048
 
     # Adjust batch size for high dimensionality
     if num_features > 50:
