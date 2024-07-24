@@ -45,7 +45,8 @@ class FeatureExtractor(nn.Module):
 
 def Create_GAN_Architecture(original_set):
     D = original_set.shape[1]
-    hidden_dim = 10 * D
+    generator_hidden_dim = 10 * D
+    discriminator_hidden_dim = 2 * D
     num_layers = math.ceil(math.log(D)) + 1
     
     if D < 10:
@@ -57,13 +58,16 @@ def Create_GAN_Architecture(original_set):
     else:
         latent_dim = 200
     
-    hidden_dims = [math.ceil(hidden_dim / (2**i)) for i in range(num_layers)]
-    #hidden_dims = [hidden_dim for i in range(num_layers)]
+    generator_hidden_dims = [math.ceil(generator_hidden_dim / (2**i)) for i in range(num_layers)]
     
-    generator = Generator(latent_dim, D, hidden_dims)
-    discriminator = Discriminator(D, hidden_dims)
+    # Create discriminator hidden dimensions with one less layer and starting with 5 * D
+    discriminator_hidden_dims = [math.ceil(discriminator_hidden_dim / (2**i)) for i in range(num_layers - 1)]
+    
+    generator = Generator(latent_dim, D, generator_hidden_dims)
+    discriminator = Discriminator(D, discriminator_hidden_dims)
     
     return generator, discriminator, latent_dim
+
 
 def gradient_penalty(discriminator, real_data, fake_data, lambda_gp=0.1):
     alpha = torch.rand(real_data.size(0), 1, device=real_data.device)
@@ -85,7 +89,7 @@ def gradient_penalty(discriminator, real_data, fake_data, lambda_gp=0.1):
     return gradient_penalty
 
 
-def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr=0.00001, beta1=0.5, critic_updates=5, mse_weight=100, feature_weight=50):
+def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr=0.00001, beta1=0.5, critic_updates=5, mse_weight=100, feature_weight=500, noise_std=0.1):
     dataset_np = dataset.to_numpy()
     
     generator, discriminator, latent_dim = Create_GAN_Architecture(dataset_np)
@@ -94,7 +98,7 @@ def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr
     dataloader = DataLoader(TensorDataset(original_tensor), batch_size=batch_size, shuffle=True)
     
     optimizer_G = optim.Adam(generator.parameters(), lr=lr, betas=(beta1, 0.999))
-    optimizer_D = optim.Adam(discriminator.parameters(), lr=lr, betas=(beta1, 0.999))
+    optimizer_D = optim.Adam(discriminator.parameters(), lr=lr/4, betas=(beta1, 0.999))
     
     scheduler_G = torch.optim.lr_scheduler.ExponentialLR(optimizer_G, gamma=0.999)
     scheduler_D = torch.optim.lr_scheduler.ExponentialLR(optimizer_D, gamma=0.999)
@@ -110,10 +114,14 @@ def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr
                 optimizer_D.zero_grad()
                 z = torch.randn(current_batch_size, latent_dim).to(generator.model[0].weight.device)
                 fake_data = generator(z)
+
+                # Add noise to discriminator input
+                real_data_noisy = real_data + torch.normal(0, noise_std, size=real_data.size()).to(real_data.device)
+                fake_data_noisy = fake_data + torch.normal(0, noise_std, size=fake_data.size()).to(fake_data.device)
                 
-                real_loss = -torch.mean(discriminator(real_data))
-                fake_loss = torch.mean(discriminator(fake_data.detach()))
-                gp = gradient_penalty(discriminator, real_data, fake_data, lambda_gp=0.1)
+                real_loss = -torch.mean(discriminator(real_data_noisy))
+                fake_loss = torch.mean(discriminator(fake_data_noisy.detach()))
+                gp = gradient_penalty(discriminator, real_data, fake_data, lambda_gp=1)
                 d_loss = real_loss + fake_loss + gp
                 d_loss.backward()
                 optimizer_D.step()

@@ -65,7 +65,7 @@ def analyze_dataset(df):
     
     # Suggest epochs based on dataset size and dimensionality
     if num_samples < 1000:
-        epochs = 1000
+        epochs = 1500
     elif num_samples < 10000:
         epochs = 5000
     else:
