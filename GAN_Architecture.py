@@ -98,7 +98,7 @@ def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr
     dataloader = DataLoader(TensorDataset(original_tensor), batch_size=batch_size, shuffle=True)
     
     optimizer_G = optim.Adam(generator.parameters(), lr=lr, betas=(beta1, 0.999))
-    optimizer_D = optim.Adam(discriminator.parameters(), lr=lr/4, betas=(beta1, 0.999))
+    optimizer_D = optim.Adam(discriminator.parameters(), lr=lr/2, betas=(beta1, 0.999))
     
     scheduler_G = torch.optim.lr_scheduler.ExponentialLR(optimizer_G, gamma=0.999)
     scheduler_D = torch.optim.lr_scheduler.ExponentialLR(optimizer_D, gamma=0.999)
@@ -119,16 +119,27 @@ def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr
                 real_data_noisy = real_data + torch.normal(0, noise_std, size=real_data.size()).to(real_data.device)
                 fake_data_noisy = fake_data + torch.normal(0, noise_std, size=fake_data.size()).to(fake_data.device)
                 
-                real_loss = -torch.mean(discriminator(real_data_noisy))
-                fake_loss = torch.mean(discriminator(fake_data_noisy.detach()))
-                gp = gradient_penalty(discriminator, real_data, fake_data, lambda_gp=1)
+                # Label smoothing: real_labels = 0.9, fake_labels = 0.1
+                real_labels = torch.full((current_batch_size, 1), 0.9, device=real_data.device)
+                fake_labels = torch.full((current_batch_size, 1), 0.1, device=real_data.device)
+
+                real_output = discriminator(real_data_noisy)
+                fake_output = discriminator(fake_data_noisy.detach())
+
+                real_loss = F.binary_cross_entropy_with_logits(real_output, real_labels)
+                fake_loss = F.binary_cross_entropy_with_logits(fake_output, fake_labels)
+                gp = gradient_penalty(discriminator, real_data, fake_data, lambda_gp=0.1)
                 d_loss = real_loss + fake_loss + gp
                 d_loss.backward()
                 optimizer_D.step()
             
             optimizer_G.zero_grad()
             fake_data = generator(z)
-            gen_loss = -torch.mean(discriminator(fake_data))
+            gen_output = discriminator(fake_data)
+            
+            # Label smoothing: real_labels = 0.9
+            real_labels_for_gen = torch.full((current_batch_size, 1), 0.9, device=fake_data.device)
+            gen_loss = F.binary_cross_entropy_with_logits(gen_output, real_labels_for_gen)
             
             # MSE loss between generated data and a random sample from real data
             real_sample = real_data[torch.randint(0, real_data.size(0), (fake_data.size(0),))]
@@ -150,6 +161,7 @@ def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr
             print(f"Epoch [{epoch}/{num_epochs}] | D Loss: {d_loss.item():.4f} | G Loss: {gen_loss.item():.4f} | MSE Loss: {mse.item():.4f} | Feature Loss: {feature_loss.item():.4f}")
 
     return generator
+
 
 
 def train_GAN(dataset, num_epochs=5000, batch_size=128, lr=0.00001, beta1=0.5, critic_updates=5, mse_weight=10):
