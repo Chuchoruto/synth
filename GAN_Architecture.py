@@ -89,7 +89,7 @@ def gradient_penalty(discriminator, real_data, fake_data, lambda_gp=0.1):
     return gradient_penalty
 
 
-def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr=0.00001, beta1=0.5, critic_updates=5, mse_weight=100, feature_weight=500, noise_std=0.1):
+def train_GAN_with_feature_matching(dataset, num_epochs=5000, batch_size=128, lr=0.00001, beta1=0.5, critic_updates=5, mse_weight=100, feature_weight=3000, noise_std=0.1):
     dataset_np = dataset.to_numpy()
     
     generator, discriminator, latent_dim = Create_GAN_Architecture(dataset_np)
