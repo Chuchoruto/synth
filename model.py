@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from preprocess import clean_set, analyze_dataset
 from GAN_Architecture import train_GAN, train_GAN_with_feature_matching
-from sampler import calculate_ks, selective_sample, sample_gan
+from sampler import calculate_ks, selective_sample, sample_gan, round_discrete_columns
 from sklearn.preprocessing import MinMaxScaler
 
 class Model:
@@ -34,6 +34,7 @@ class Model:
         nondisc_data = sample_gan(self.generator, num_samples, latent_dim, self.scaled_df)
         scaled_nondisc_data = self.scaler.inverse_transform(nondisc_data)
         self.nondiscriminatory_data = pd.DataFrame(scaled_nondisc_data, columns=self.original_set.columns)
+        self.selected_synthetic_data = round_discrete_columns(self.original_set, self.selected_synthetic_data)
 
     def sample_select_data(self, num_samples):
         latent_dim = self.generator.model[0].in_features  # Extract latent dimension from generator
@@ -41,6 +42,7 @@ class Model:
         selected_synthetic_data = selective_sample(self.generator, num_samples, latent_dim, self.scaled_df)
         scaled_selected_data = self.scaler.inverse_transform(selected_synthetic_data)
         self.selected_synthetic_data = pd.DataFrame(scaled_selected_data, columns=self.original_set.columns)
+        self.selected_synthetic_data = round_discrete_columns(self.original_set, self.selected_synthetic_data)
 
     def calc_ks(self):
         
@@ -50,15 +52,14 @@ class Model:
         # Round the p-values to 4 decimal places and convert to string to avoid scientific notation
         self.p_values_df['KS p-value'] = self.p_values_df['KS p-value'].apply(lambda x: format(x, '.6f'))
 
-    def get_synthetic_csv(self):
+    def get_synthetic_data(self):
         # Extract the original filename
         original_filename = os.path.basename(self.csv_path)
         # Create the new filename
         new_filename = f"synthetic_{original_filename}"
-        # Save the synthetic data to a CSV file
-        self.synthetic_csv = self.selected_synthetic_data.to_csv(new_filename, index=False)
-        # Return the new filename
-        return self.synthetic_csv
+        
+        # Return the new filename and the data
+        return new_filename, self.selected_synthetic_data
 
     def get_ks_pvalues(self):
         return self.p_values_df
