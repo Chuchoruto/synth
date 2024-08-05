@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify, send_file
 from model import Model
+from flask_cors import CORS  # Import CORS
 import os
 
 app = Flask(__name__)
+# Enable CORS for all routes but only allow requests from a specific origin
+CORS(app, resources={r"/*": {"origins": "http://your-frontend-domain.com"}}) # This Domain needs to get changed to the frontend domain we end up using.
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
