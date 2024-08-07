@@ -4,11 +4,13 @@ from flask_cors import CORS  # Import CORS
 import os
 
 app = Flask(__name__)
-# Enable CORS for all routes but only allow requests from a specific origin
-CORS(app, resources={r"/*": {"origins": "http://your-frontend-domain.com"}}) # This Domain needs to get changed to the frontend domain we end up using.
+# Enable CORS for all routes but only allow requests from specific origins
+CORS(app, resources={r"/*": {"origins": ["http://your-frontend-domain.com", "http://localhost"]}})
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+SYNTHETIC_FOLDER = 'synthetic'
+os.makedirs(SYNTHETIC_FOLDER, exist_ok=True)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -26,10 +28,11 @@ def upload_file():
 
 # Global variable to store the model instance
 model_instance = None
+original_filename = None
 
 @app.route('/initialize', methods=['POST'])
 def initialize():
-    global model_instance
+    global model_instance, original_filename
     data = request.get_json()
     csv_path = data.get('csv_path')
     num_samples = data.get('num_samples', 100)  # Default to 100 if not provided
@@ -38,19 +41,26 @@ def initialize():
         return jsonify({'error': 'csv_path not provided'}), 400
 
     model_instance = Model(csv_path=csv_path, num_samples=num_samples)
+    original_filename = os.path.basename(csv_path).rsplit('.', 1)[0]  # Extract the base filename without extension
     return "Model initialized!"
 
 @app.route('/download-synthetic-csv')
 def download_synthetic_csv():
-    global model_instance
+    global model_instance, original_filename
     if model_instance is None:
-        return "Model not initialized!"
+        return "Model not initialized!", 400
     
-    # Get the CSV file path
-    csv_file_path = model_instance.get_synthetic_csv()
+    # Get synthetic data as a DataFrame
+    synthetic_data = model_instance.get_synthetic_data()
+    
+    # Define the file path
+    csv_file_path = os.path.join(SYNTHETIC_FOLDER, f"synthetic_{original_filename}.csv")
+    
+    # Save the DataFrame to a CSV file
+    synthetic_data.to_csv(csv_file_path, index=False)
     
     # Send the file to the client
-    return send_file(csv_file_path, as_attachment=True, download_name=os.path.basename(csv_file_path))
+    return send_file(csv_file_path, as_attachment=True, download_name=f"synthetic_{original_filename}.csv")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')

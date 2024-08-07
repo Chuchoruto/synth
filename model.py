@@ -45,7 +45,6 @@ class Model:
         self.selected_synthetic_data = round_discrete_columns(self.original_set, self.selected_synthetic_data)
 
     def calc_ks(self):
-        
         p_values = calculate_ks(self.selected_synthetic_data, self.original_set)
         # Convert the p-values dictionary to a DataFrame for columnar representation
         self.p_values_df = pd.DataFrame(list(p_values.items()), columns=['Column', 'KS p-value'])
@@ -53,17 +52,10 @@ class Model:
         self.p_values_df['KS p-value'] = self.p_values_df['KS p-value'].apply(lambda x: format(x, '.6f'))
 
     def get_synthetic_data(self):
-        # Extract the original filename
-        original_filename = os.path.basename(self.csv_path)
-        # Create the new filename
-        new_filename = f"synthetic_{original_filename}"
-        
-        # Return the new filename and the data
-        return new_filename, self.selected_synthetic_data
+        return self.selected_synthetic_data
 
     def get_ks_pvalues(self):
         return self.p_values_df
 
     def check_pvalues_threshold(self):
         return all(float(p) < 0.05 for p in self.p_values_df['KS p-value'])
-
