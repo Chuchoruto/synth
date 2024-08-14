@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 # Enable CORS for all routes but only allow requests from specific origins
-CORS(app, resources={r"/*": {"origins": ["http://your-frontend-domain.com", "http://localhost"]}})
+CORS(app, resources={r"/*": {"origins": ["http://samplify-app.com", "http://localhost:3000"]}})
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -32,10 +32,14 @@ original_filename = None
 
 @app.route('/initialize', methods=['POST'])
 def initialize():
+    sample_limit = 5000 # This is to make sure I don't reach 1GB maximum of sample size
     global model_instance, original_filename
     data = request.get_json()
     csv_path = data.get('csv_path')
     num_samples = data.get('num_samples', 100)  # Default to 100 if not provided
+
+    if num_samples > sample_limit:
+        num_samples = sample_limit
 
     if not csv_path:
         return jsonify({'error': 'csv_path not provided'}), 400

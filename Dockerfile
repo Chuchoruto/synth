@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/
 COPY requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Copy only the necessary files into the container at /app
 COPY GAN_Architecture.py .
@@ -23,5 +23,5 @@ COPY flask-app.py .
 # Expose port 5000 for the Flask app
 EXPOSE 5000
 
-# Define the command to run the Flask app
-CMD ["python", "flask-app.py"]
+# Define the command to run the Flask app with Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "flask-app:app"]
