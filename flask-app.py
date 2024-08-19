@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 # Enable CORS for all routes but only allow requests from specific origins
-CORS(app, resources={r"/*": {"origins": ["http://samplify-app.com", "http://localhost:3000"]}})
+CORS(app, resources={r"/*": {"origins": ["https://samplify-app.com", "https://api.samplify-app.com", "http://localhost:3000"]}})
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
