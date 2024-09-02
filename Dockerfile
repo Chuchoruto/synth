@@ -24,4 +24,4 @@ COPY flask-app.py .
 EXPOSE 5000
 
 # Define the command to run the Flask app with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "flask-app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "1800", "--workers", "2", "flask-app:app"]
