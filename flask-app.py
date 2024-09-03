@@ -18,6 +18,11 @@ user_models = {}
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    # Ensure a session ID is set as soon as the upload route is hit
+    if 'id' not in session:
+        session['id'] = str(uuid.uuid4())
+        app.logger.info(f"New session created with ID: {session['id']}")
+
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
 
@@ -29,6 +34,7 @@ def upload_file():
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(file_path)
         return jsonify({'file_path': file_path}), 200
+
 
 @app.route('/initialize', methods=['POST'])
 def initialize():
@@ -45,8 +51,7 @@ def initialize():
 
     session_id = session.get('id')
     if not session_id:
-        session_id = str(uuid.uuid4())  # Generate a new session ID
-        session['id'] = session_id
+        return "Session ID missing or invalid!", 400
 
     model_instance = Model(csv_path=csv_path, num_samples=num_samples)
     user_models[session_id] = model_instance
@@ -54,6 +59,7 @@ def initialize():
     original_filename = os.path.basename(csv_path).rsplit('.', 1)[0]
     session['original_filename'] = original_filename
 
+    app.logger.info(f"Model initialized for session ID: {session_id}")
     return "Model initialized!", 200
 
 @app.route('/download-synthetic-csv')
