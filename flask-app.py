@@ -18,10 +18,11 @@ user_models = {}
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    # Ensure a session ID is set as soon as the upload route is hit
     if 'id' not in session:
         session['id'] = str(uuid.uuid4())
         app.logger.info(f"New session created with ID: {session['id']}")
+    else:
+        app.logger.info(f"Session ID already set: {session['id']}")
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -38,10 +39,14 @@ def upload_file():
 
 @app.route('/initialize', methods=['POST'])
 def initialize():
+    app.logger.info(f"Session ID at initialize: {session.get('id')}")
     sample_limit = 5000  # Ensure the sample size doesn't exceed your limit
     data = request.get_json()
     csv_path = data.get('csv_path')
     num_samples = data.get('num_samples', 100)
+
+    if not session.get('id'):
+        return "Session ID missing or invalid!", 400
 
     if num_samples > sample_limit:
         num_samples = sample_limit
@@ -50,9 +55,6 @@ def initialize():
         return jsonify({'error': 'csv_path not provided'}), 400
 
     session_id = session.get('id')
-    if not session_id:
-        return "Session ID missing or invalid!", 400
-
     model_instance = Model(csv_path=csv_path, num_samples=num_samples)
     user_models[session_id] = model_instance
 
