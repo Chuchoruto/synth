@@ -3,9 +3,14 @@ from model import Model
 from flask_cors import CORS
 import os
 import uuid
+from datetime import timedelta
+
+
+
 
 app = Flask(__name__)
 app.secret_key = 'secretkey'  # Necessary for session management, use a fixed key in production
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": ["https://samplify-app.com", "https://www.samplify-app.com", "https://api.samplify-app.com", "http://localhost:3000"]}})
 
 UPLOAD_FOLDER = 'uploads'
