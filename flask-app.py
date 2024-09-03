@@ -5,7 +5,7 @@ import os
 import uuid
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Necessary for session management, use a fixed key in production
+app.secret_key = 24  # Necessary for session management, use a fixed key in production
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": ["https://samplify-app.com", "https://www.samplify-app.com", "https://api.samplify-app.com", "http://localhost:3000"]}})
 
 UPLOAD_FOLDER = 'uploads'
