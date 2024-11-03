@@ -84,3 +84,14 @@ def download_synthetic_csv():
     synthetic_data.to_csv(csv_file_path, index=False)
 
     return send_file(csv_file_path, as_attachment=True, download_name=f"synthetic_{original_filename}.csv")
+
+@app.route('/get-ks')
+def get_ks_vals():
+    session_id = session.get('id')
+    if not session_id or session_id not in user_models:
+        return "Model not initialized!", 400
+    
+    model_instance = user_models[session_id]
+    # Convert the DataFrame to JSON
+    ks_pvalues_json = model_instance.get_ks_pvalues().to_json(orient="records")
+    return ks_pvalues_json, 200, {'Content-Type': 'application/json'}
