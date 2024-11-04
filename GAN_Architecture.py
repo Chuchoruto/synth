@@ -58,10 +58,10 @@ def Create_GAN_Architecture(original_set):
     else:
         latent_dim = 200
     
-    generator_hidden_dims = [math.ceil(generator_hidden_dim / (2**i)) for i in range(num_layers)]
+    generator_hidden_dims = [math.ceil(generator_hidden_dim / (i+1)) for i in range(num_layers)]
     
     # Create discriminator hidden dimensions with one less layer and starting with 5 * D
-    discriminator_hidden_dims = [math.ceil(discriminator_hidden_dim / (2**i)) for i in range(num_layers - 1)]
+    discriminator_hidden_dims = [math.ceil(discriminator_hidden_dim / (i+1)) for i in range(num_layers - 1)]
     
     generator = Generator(latent_dim, D, generator_hidden_dims)
     discriminator = Discriminator(D, discriminator_hidden_dims)
