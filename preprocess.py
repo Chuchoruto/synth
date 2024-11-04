@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 def drop_invalid_zeros(df):
     """
@@ -67,25 +68,19 @@ def analyze_dataset(df):
     if num_samples < 1000:
         epochs = 800
     elif num_samples < 10000:
-        epochs = 2000
+        epochs = 400
     else:
-        epochs = 4000
+        epochs = 200
 
     # Adjust epochs for high dimensionality
     if num_features > 50:
         epochs = int(epochs * 1.5)
 
     # Suggest learning rate based on dataset size and dimensionality
-    if num_samples < 1000:
-        lr = 0.0001
-    elif num_samples < 10000:
-        lr = 0.0001
-    else:
-        lr = 0.0001
+    lr = 0.0005
 
     # Adjust learning rate for high dimensionality
-    if num_features > 50:
-        lr = lr / 2
+    lr = lr / np.log(num_features)
 
     # Suggest batch size based on dataset size and dimensionality
     if num_samples < 1000:
